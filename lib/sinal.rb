@@ -1,47 +1,40 @@
-require_relative 'parametro'
+require_relative 'fuzzy'
 
 class Sinal
   attr_accessor :tempo, :veiculos, :prioridadeAberturaBaixa, :prioridadeAberturaMedia, :prioridadeAberturaAlta
 
   def initialize(tmp, veic)
-    self.tempo = Tempo.new(tmp)
-    self.veiculos = Veiculo.new(veic)
-    self.prioridadeAberturaBaixa = regraAberturaBaixa()
-    self.prioridadeAberturaMedia = regraAberturaMedia()
-    self.prioridadeAberturaAlta = regraAberturaAlta()
+    self.tempo = Fuzzy.new(tmp)
+    self.veiculos = Fuzzy.new(veic)
+    self.prioridadeAberturaBaixa = regra_abertura_baixa
+    self.prioridadeAberturaMedia = regra_abertura_media
+    self.prioridadeAberturaAlta = regra_abertura_alta
   end
 
-  # {T(B) ou [V(B) e T(M)]} = PrioridadeAbertaBaixa
-  def regraAberturaBaixa
-    vpb = veiculos.pertinenciaBaixa
-    tpm = tempo.pertinenciaMedia
-    tpb = tempo.pertinenciaBaixa
+  def min(a, b)
+    a < b ? a : b
+  end
 
-    prioridade = vpb <= tpm ? vpb : tpm
-    tpb > prioridade ? tpb : prioridade
+  def max(a, b)
+    a > b ? a : b
+  end
+
+  # rever lógica
+  # {T(B) ou [V(B) e T(M)]} = PrioridadeAbertaBaixa
+  def regra_abertura_baixa
+    max(tempo.pertinenciaBaixa, min(veiculos.pertinenciaBaixa, tempo.pertinenciaMedia))
   end
 
   # {[(V(B) ou V(M)) e T(A)] ou [V(M) e T(M)]} = PrioridadeAberturaMedia
-  def regraAberturaMedia
-    vpb = veiculos.pertinenciaBaixa
-    vpm = veiculos.pertinenciaMedia
-    tpa = veiculos.pertinenciaAlta
-    tpm = veiculos.pertinenciaMedia
-
-    p1 = vpb >= vpm ? vpb : vpm
-    p1 = tpa if tpa < p1
-    p2 = vpm <= tpm ? vpm : tpm
-    p1 < p2 ? p2 : p1
+  def regra_abertura_media
+    p1 = min(max(veiculos.pertinenciaBaixa, veiculos.pertinenciaMedia), tempo.pertinenciaAlta)
+    p2 = min(veiculos.pertinenciaMedia, tempo.pertinenciaMedia)
+    max(p1, p2)
   end
 
   # {V(A) e [T(M) ou T(A)]} = PrioridadeAberturaAlta
-  def regraAberturaAlta
-    tpm = tempo.pertinenciaMedia
-    tpa = tempo.pertinenciaAlta
-    vpa = veiculos.pertinenciaAlta
-
-    prioridade = tpm >= tpa ? tpm : tpa
-    vpa < prioridade ? vpa : prioridade
+  def regra_abertura_alta
+    min(veiculos.pertinenciaAlta, max(tempo.pertinenciaMedia, tempo.pertinenciaAlta))
   end
 
   def defuzzy
@@ -49,10 +42,15 @@ class Sinal
     media = 180.0 # (50+60+70) faixa determinada para prioridade media
     alta = 270.0  # (80+90+100) faixa determinada para prioridade alta
 
-    ((baixa*self.prioridadeAberturaBaixa)+(media*self.prioridadeAberturaMedia)+(alta*self.prioridadeAberturaAlta))/((4.0*self.prioridadeAberturaBaixa)+(3.0*self.prioridadeAberturaMedia)+(3.0*self.prioridadeAberturaAlta))
+    ((baixa * prioridadeAberturaBaixa) + (media * prioridadeAberturaMedia) + (alta * prioridadeAberturaAlta)) /
+        ((4.0 * prioridadeAberturaBaixa) + (3.0 * prioridadeAberturaMedia) + (3.0 * prioridadeAberturaAlta))
   end
 
   def to_s
-    "Prioridade de Abertura Sinaleira\nBaixa = #{self.prioridadeAberturaBaixa}\nMedia = #{self.prioridadeAberturaMedia}\nAlta = #{self.prioridadeAberturaAlta}\nDefuzzy = #{defuzzy()}\n"
+    "Prioridade de Abertura Sinaleira\n" +
+        "Baixa = #{self.prioridadeAberturaBaixa}\n" +
+        "Media = #{self.prioridadeAberturaMedia}\n" +
+        "Alta = #{self.prioridadeAberturaAlta}\n" +
+        "Defuzzy = #{defuzzy}\n"
   end
 end
